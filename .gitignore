@@ -1,0 +1,67 @@
+# ============================================
+# Retro Horde - .gitignore
+# Godot 4.6.2 project
+# ============================================
+
+# --- Godot engine ---
+# Exclude generated/cache directories
+.godot/editor/
+.godot/imported/
+.godot/shader_cache/
+
+# Track UID and class cache (required for Godot 4.4+)
+!.godot/uid_cache.bin
+!.godot/global_script_class_cache.cfg
+!.godot/scene_groups_cache.cfg
+export.cfg
+export_presets.cfg
+
+# Imported translations (auto-generated from CSV)
+*.translation
+
+# --- Mono / C# ---
+.mono/
+data_*/
+mono_crash.*.json
+
+# --- OS & editor junk ---
+.directory
+.DS_Store
+*~
+Thumbs.db
+*.swp
+*.swo
+*.swn
+
+# --- Blender ---
+*.blend1
+*.blend2
+*.blend3
+
+# --- IDE ---
+.vs/
+.vscode/
+*.sln
+*.csproj
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# --- AI / WorkBuddy session state ---
+.workbuddy/production/
+.claude/agent-memory/
+
+# --- Build artifacts ---
+build/
+dist/
+*.exe
+*.pck
+*.zip
+
+# --- Secrets & local-only ---
+.env
+*.local
+*.private
+secrets/
+credentials/

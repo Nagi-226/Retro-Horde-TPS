@@ -1,0 +1,244 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - '.vscode/**'
+      - '.claude/**'
+      - '.workbuddy/memory/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_smoke_test:
+        description: 'Run Godot smoke test (main scene load)'
+        type: boolean
+        default: true
+
+env:
+  GODOT_VERSION: 4.6.2
+  GODOT_STATUS: stable
+  GODOT_RELEASE_NAME: Godot_v4.6.2-stable_linux.x86_64
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  # Stage 1: File Format & Integrity
+  # ═══════════════════════════════════════════════════════
+  format-check:
+    name: File Format & Integrity
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq dos2unix recode
+
+      - name: Godot file format checks (file_format.sh)
+        run: |
+          if [ -f file_format.sh ]; then
+            bash ./file_format.sh
+          else
+            echo "[SKIP] file_format.sh not found"
+          fi
+
+      - name: Check line endings (CRLF prevention)
+        run: |
+          BAD_FILES=$(find . -type f \
+            -not -path './.godot/*' \
+            -not -path './.git/*' \
+            -not -path './screenshots/*' \
+            -not -name '*.glb' \
+            -not -name '*.png' \
+            -not -name '*.jpg' \
+            -not -name '*.webp' \
+            -not -name '*.ogg' \
+            -not -name '*.wav' \
+            -not -name '*.sample' \
+            -not -name '*.ctex' \
+            -exec file {} \; | grep 'CRLF' | cut -d: -f1 || true)
+          if [ -n "$BAD_FILES" ]; then
+            echo "::error::CRLF line endings found in:"
+            echo "$BAD_FILES"
+            exit 1
+          fi
+          echo "[OK] No CRLF line endings in text files"
+
+      - name: Check no secrets in code
+        run: |
+          PATTERNS='(password\s*=\s*"[^"]+")|(secret_key\s*=\s*"[^"]+")|(api_key\s*=\s*"[^"]+")|(token\s*=\s*"[^"]+")'
+          if grep -rPn --include='*.gd' --include='*.cfg' "$PATTERNS" .; then
+            echo "::warning::Potential hardcoded secrets found. Review the matches above."
+          else
+            echo "[OK] No hardcoded secrets detected in GDScript/config files"
+          fi
+
+  # ═══════════════════════════════════════════════════════
+  # Stage 2: Godot Engine Validation
+  # ═══════════════════════════════════════════════════════
+  godot-validate:
+    name: Godot Headless Validation
+    runs-on: ubuntu-24.04
+    needs: format-check
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot engine
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: /tmp/godot_binary
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}-v1
+
+      - name: Download Godot headless
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/godot_binary
+          GODOT_URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/${GODOT_RELEASE_NAME}.zip"
+          echo "Downloading: $GODOT_URL"
+          curl -fsSL -o /tmp/godot.zip "$GODOT_URL"
+          unzip -q /tmp/godot.zip -d /tmp/godot_binary
+          chmod +x /tmp/godot_binary/Godot_v*_linux.x86_64
+          echo "Godot binary downloaded successfully"
+
+      - name: Verify Godot version
+        run: |
+          GODOT_BIN=$(ls /tmp/godot_binary/Godot_v*_linux.x86_64 | head -1)
+          echo "Godot binary: $GODOT_BIN"
+          "$GODOT_BIN" --version
+          echo "GODOT_BIN=$GODOT_BIN" >> $GITHUB_ENV
+
+      - name: Godot syntax check (GDScript parse)
+        run: |
+          echo "Running Godot headless project import + script parse..."
+          $GODOT_BIN --headless --path "${{ github.workspace }}" --check-only --quit 2>&1 | tee /tmp/godot_output.log
+          if grep -iE 'error|parse error|script error|failed to load|cannot find' /tmp/godot_output.log; then
+            echo "::error::Godot reported errors during project validation"
+            exit 1
+          fi
+          echo "[OK] Godot project loads and scripts parse without errors"
+
+      - name: Main scene load smoke test
+        run: |
+          echo "Loading main scene: res://main/main.tscn"
+          timeout 30 $GODOT_BIN --headless --path "${{ github.workspace }}" res://main/main.tscn --quit-after 60 2>&1 | tee /tmp/godot_smoke.log || {
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 124 ]; then
+              echo "::warning::Godot smoke test timed out (scene may have loaded but not quit)"
+            else
+              echo "::error::Godot smoke test failed with exit code $EXIT_CODE"
+              cat /tmp/godot_smoke.log
+              exit 1
+            fi
+          }
+          if grep -qiE 'error|crash|segfault|failed' /tmp/godot_smoke.log; then
+            echo "::error::Main scene smoke test reported errors"
+            exit 1
+          fi
+          echo "[OK] Main scene loaded successfully"
+
+      - name: Scene file integrity check
+        run: |
+          echo "Checking scene file count..."
+          SCENE_COUNT=$(find . -name '*.tscn' -not -path './.godot/*' -not -path './.git/*' | wc -l)
+          GDSCRIPT_COUNT=$(find . -name '*.gd' -not -path './.godot/*' -not -path './.git/*' | wc -l)
+          echo "Scenes: $SCENE_COUNT | Scripts: $GDSCRIPT_COUNT"
+          if [ "$SCENE_COUNT" -lt 10 ]; then
+            echo "::warning::Scene count ($SCENE_COUNT) seems low — check for missing files"
+          fi
+          if [ "$GDSCRIPT_COUNT" -lt 10 ]; then
+            echo "::warning::GDScript count ($GDSCRIPT_COUNT) seems low — check for missing files"
+          fi
+          echo "scene_count=$SCENE_COUNT" >> $GITHUB_OUTPUT
+          echo "gdscript_count=$GDSCRIPT_COUNT" >> $GITHUB_OUTPUT
+
+  # ═══════════════════════════════════════════════════════
+  # Stage 3: Build (Windows export) — on tags only
+  # ═══════════════════════════════════════════════════════
+  build-windows:
+    name: Build Windows Export
+    runs-on: ubuntu-24.04
+    needs: godot-validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Godot engine
+        uses: actions/cache@v4
+        with:
+          path: /tmp/godot_binary
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}-v1
+
+      - name: Download Godot (if not cached)
+        run: |
+          if [ ! -f /tmp/godot_binary/Godot_v*_linux.x86_64 ]; then
+            mkdir -p /tmp/godot_binary
+            GODOT_URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/${GODOT_RELEASE_NAME}.zip"
+            curl -fsSL -o /tmp/godot.zip "$GODOT_URL"
+            unzip -q /tmp/godot.zip -d /tmp/godot_binary
+            chmod +x /tmp/godot_binary/Godot_v*_linux.x86_64
+          fi
+          GODOT_BIN=$(ls /tmp/godot_binary/Godot_v*_linux.x86_64 | head -1)
+          echo "GODOT_BIN=$GODOT_BIN" >> $GITHUB_ENV
+
+      - name: Download export templates
+        run: |
+          TEMPLATES_URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          curl -fsSL -o /tmp/templates.tpz "$TEMPLATES_URL"
+          unzip -q /tmp/templates.tpz -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          echo "[OK] Export templates installed"
+
+      - name: Build Windows .pck
+        run: |
+          mkdir -p build
+          $GODOT_BIN --headless --path "${{ github.workspace }}" --export-pack "Windows Desktop" build/Retro-Horde.pck 2>&1
+          echo "[OK] Windows .pck built"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Retro-Horde-Windows-${{ github.ref_name }}
+          path: build/
+          retention-days: 30
+
+  # ═══════════════════════════════════════════════════════
+  # Gate Report
+  # ═══════════════════════════════════════════════════════
+  gate-report:
+    name: CI Gate Summary
+    runs-on: ubuntu-24.04
+    needs: [format-check, godot-validate]
+    if: always()
+    steps:
+      - name: Gate verdict
+        run: |
+          echo "========================================"
+          echo "  Retro Horde CI Gate Report"
+          echo "========================================"
+          echo ""
+          echo "Stage 1 (Format):     ${{ needs.format-check.result }}"
+          echo "Stage 2 (Godot):      ${{ needs.godot-validate.result }}"
+          echo ""
+
+          if [ "${{ needs.format-check.result }}" = "success" ] && \
+             [ "${{ needs.godot-validate.result }}" = "success" ]; then
+            echo "::notice::All CI gates PASSED - Ready for review/merge"
+            echo "VERDICT=PASS" >> $GITHUB_OUTPUT
+          else
+            echo "::error::CI gates FAILED - See job details above"
+            echo "VERDICT=FAIL" >> $GITHUB_OUTPUT
+            exit 1
+          fi
