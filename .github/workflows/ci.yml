@@ -2,14 +2,14 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [Beta_dev, release_dev]
     paths-ignore:
       - '**.md'
       - '.vscode/**'
       - '.claude/**'
       - '.workbuddy/memory/**'
   pull_request:
-    branches: [main]
+    branches: [Beta_dev, release_dev]
   workflow_dispatch:
     inputs:
       run_smoke_test:

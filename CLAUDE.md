@@ -17,7 +17,7 @@
 | **物理** | GodotPhysics 3D (CharacterBody3D) |
 | **动画** | AnimationTree + Root Motion |
 | **多人** | ENet MultiplayerPeer + RPC |
-| **脚本** | 15个 `.gd` 文件, 17个 `.tscn` 场景 |
+| **Scripts** | 17 `.gd` files, 17 `.tscn` scenes |
 | **快速启动** | `run_game.bat` (运行) / `run_editor.bat` (编辑器) |
 
 ---
@@ -29,6 +29,9 @@ main/main.gd          → 根节点，场景切换（菜单↔关卡）
   ├── menu/menu.gd    → 主菜单：Play/Settings/Online/Quit
   ├── menu/settings.gd → Autoload 单例，图形设置持久化
   └── level/level.gd  → 关卡管理：敌人生成、玩家生成、GI设置
+
+autoload/event_bus.gd → Autoload 全局玩法信号总线 (v0.0.2)
+ui/hud.gd             → CanvasLayer HUD 骨架：波次/得分/HP/敌人数
   
 player/
   ├── player.gd       → Player (CharacterBody3D)：动画、射击、相机震动
@@ -318,7 +321,7 @@ level/debug.gd        → Label HUD (FPS/内存/在线状态)
 | 版本 | 核心内容 | 状态 |
 |------|---------|------|
 | ✅ v0.0.1 | 项目重整 + AI基础设施全量集成 (8 Agent/72 Skill) | ✅ 完成 |
-| 🔜 v0.0.2 | 波次系统、弹幕模式、HP/得分/HUD (Plan Contract已锁定) | ⬜ 待启动 |
+| v0.0.2 | Wave system, bullet hell, HP/score/HUD (Plan Contract locked) | Task A in progress: EventBus + HUD |
 | 📋 v0.0.3 | 敌人种类扩展 (近战/弹幕/Boss，状态机) | ⬜ 规划中 |
 | 📋 v0.0.4 | 武器系统 (3武器切换/弹药管理) | ⬜ 规划中 |
 | 📋 v0.0.5 | 关卡与地图 (3手工关卡) | ⬜ 规划中 |

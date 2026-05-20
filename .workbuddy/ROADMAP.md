@@ -156,6 +156,7 @@ TPS Demo v0.0.1 基线       弹幕生存 v0.0.2→v0.7.9      预上线 v0.8.0�
 | **A** | **EventBus Autoload + HUD 框架** | 无 | 新增 2 个文件 | ~80行 |
 | | 创建 `autoload/event_bus.gd` 全局信号总线 | | | |
 | | 创建 `ui/hud.gd` CanvasLayer 骨架（波次/得分/HP占位Text） | | | |
+| | Progress 2026-05-20/Codex: EventBus registered as Autoload; HUD skeleton attached from `level/level.gd` and visible in Level with placeholder values | | | |
 | **B** | **HP系统 (Player侧)** | A (HUD显示HP) | 修改 2 个文件 | ~100行 |
 | | `player/player.gd` 添加 health/max_health/damage/die | | | |
 | | `event_bus.gd` 添加 player_damaged / player_died 信号 | | | |

@@ -85,3 +85,7 @@ level/debug.gd        → FPS/HUD调试标签
 - **文档**: `CLAUDE.md` + `CODEX.md` 已生成于项目根目录
 - **素材规划**: `.workbuddy/ASSETS.md` 版本化素材路线图 (v0.0.2→v0.1.0)
 - **路线图**: `.workbuddy/ROADMAP.md` v0.0.1→v0.1.0
+- **工作流**: Claude=审查+路线把控, Codex=主力开发, Beta_dev分支 → [[dual-ai-workflow]]
+
+- **Current progress**: v0.0.2-A started. `autoload/event_bus.gd` and `ui/hud.gd` were added; `level/level.gd` attaches the HUD skeleton. Next step is HP system, not wave/bullet-hell work yet.
+- **Known validation limit**: MCP graphical runs start successfully; local `run_game.bat --headless` still reports baseline 3D resource parse errors. Track this separately from v0.0.2-A changes.

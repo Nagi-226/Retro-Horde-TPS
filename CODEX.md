@@ -11,16 +11,18 @@
 - **Physics**: GodotPhysics 3D (CharacterBody3D)
 - **Animation**: AnimationTree + Root Motion
 - **Multiplayer**: ENet MultiplayerPeer + RPC (`@rpc("call_local")`)
-- **Files**: 15 `.gd` scripts, 17 `.tscn` scenes
+- **Files**: 17 `.gd` scripts, 17 `.tscn` scenes
 - **Quick Launch**: `run_game.bat` (play) | `run_editor.bat` (edit, F5 for live preview)
 
 ## Project Architecture
 
 ```
 main/main.gd          → Root: scene switching (menu ↔ level)
+  - autoload/event_bus.gd -> global gameplay signals for v0.0.2 systems
   ├── menu/menu.gd    → Main menu: Play/Settings/Online/Quit
   ├── menu/settings.gd → Autoload: graphics settings persistence
   └── level/level.gd  → Level: enemy spawn, player spawn, GI setup
+  - ui/hud.gd -> CanvasLayer HUD skeleton: wave/score/HP/enemies
 
 player/
   ├── player.gd       → Player (CharacterBody3D): anim, shoot, camera shake
@@ -112,7 +114,7 @@ run_game.bat      → Run game directly
 ## Roadmap
 
 - ✅ v0.0.1 — Project setup, Godot MCP, CCGS agents/skills, launch scripts
-- 🔜 v0.0.2 — Wave system, bullet hell, score system, player HP
+- 🔜 v0.0.2 — Wave system, bullet hell, score system, player HP (Task A in progress: EventBus + HUD skeleton)
 - 📋 v0.0.3 — Enemy variety (melee/ranged/Boss)
 - 📋 v0.0.4 — Weapon system (switch/drop/ammo)
 - 📋 v0.0.5 — Levels & maps

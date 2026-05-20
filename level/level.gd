@@ -5,6 +5,7 @@ signal quit
 
 const RedRobot: PackedScene = preload("res://enemies/red_robot/red_robot.tscn")
 const PlayerScene: PackedScene = preload("res://player/player.tscn")
+const HudScript: Script = preload("res://ui/hud.gd")
 
 var lightmap_gi: LightmapGI = null
 
@@ -15,6 +16,7 @@ var lightmap_gi: LightmapGI = null
 
 
 func _ready() -> void:
+	_add_hud()
 	Settings.apply_graphics_settings(get_window(), world_environment.environment, self)
 
 	if Settings.config_file.get_value("rendering", "gi_type") == Settings.GIType.SDFGI:
@@ -40,6 +42,12 @@ func _ready() -> void:
 		# Then spawn/despawn players as they connect/disconnect
 		multiplayer.peer_connected.connect(add_player)
 		multiplayer.peer_disconnected.connect(del_player)
+
+
+func _add_hud() -> void:
+	var hud: CanvasLayer = HudScript.new()
+	hud.name = "HUD"
+	add_child(hud)
 
 
 func setup_sdfgi() -> void:
