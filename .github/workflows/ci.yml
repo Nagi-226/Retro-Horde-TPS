@@ -96,7 +96,7 @@ jobs:
 
       - name: Cache Godot engine
         id: cache-godot
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/godot_binary
           key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}-v1
@@ -176,7 +176,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache Godot engine
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/godot_binary
           key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}-v1
